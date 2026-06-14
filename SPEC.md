@@ -1,109 +1,107 @@
 # SPEC — space-statusline
 
-> Especificación de producto e implementación. Pensada para que un agente en una
-> sesión nueva pueda construir el proyecto sin re-derivar el contexto. Léela junto
-> con `CLAUDE.md` (reglas y arranque) y `runtime/statusline.sh` (el estado base).
+> Product and implementation specification. Written so an agent in a fresh session
+> can build the project without re-deriving the context. Read it alongside
+> `CLAUDE.md` (rules and onboarding) and `runtime/statusline.sh` (the base state).
 
 ---
 
-## 1. Resumen ejecutivo
+## 1. Executive summary
 
-`space-statusline` es una herramienta para **Claude Code** que dibuja un status line
-con estética *space-synthwave* ("Outrun Horizon") y, sobre todo, lo hace
-**totalmente personalizable mediante un wizard CLI interactivo**.
+`space-statusline` is a tool for **Claude Code** that draws a status line with a
+*space-synthwave* aesthetic ("Outrun Horizon") and, above all, makes it **fully
+customizable through an interactive CLI wizard**.
 
-El usuario corre el wizard, elige tema / secciones / glifos / layout, y la
-herramienta deja configurado el status line de Claude Code. No hay que editar bash
-a mano.
+The user runs the wizard, picks theme / sections / glyphs / layout, and the tool
+configures Claude Code's status line. No editing bash by hand.
 
-El proyecto nace de un script bash ya funcional (`runtime/statusline.sh`) que hoy
-tiene todos los valores hardcodeados. El objetivo es **parametrizarlo** y construir
-el wizard que lo configura.
-
----
-
-## 2. Origen y estado actual
-
-- Existe un script bash funcional: `runtime/statusline.sh` (copiado tal cual del
-  status line que ya usa el autor en `~/.claude/statusline.sh`).
-- Dibuja 3 líneas: (1) directorio + git, (2) regla-horizonte con gradiente,
-  (3) modelo + barra de contexto + costo + tokens + hora.
-- Usa **truecolor 24-bit** y **glifos Nerd Font** (Cascadia Code NF).
-- Hoy **todo está hardcodeado**: paleta, secciones, anchos, glifos, formato.
-- Lee el JSON que Claude Code entrega por stdin (modelo, cwd, contexto, costo).
-
-**El trabajo es:** mover esos valores hardcodeados a un archivo de configuración,
-y construir el wizard Node/TS que genera y edita esa configuración.
+The project grew out of an already-working bash script (`runtime/statusline.sh`) that
+had everything hardcoded. The goal is to **parameterize it** and build the wizard that
+configures it.
 
 ---
 
-## 3. Objetivo
+## 2. Origin and current state
 
-1. Que el status line lea su apariencia desde una **config JSON** en runtime.
-2. Un **wizard CLI** (Node + TypeScript) que crea/edita esa config de forma
-   interactiva y agradable.
-3. Integración automática con Claude Code (`settings.json`), reversible.
-4. Publicable en **GitHub público** y distribuible vía `pnpm dlx` / instalación global.
+- A working bash script exists: `runtime/statusline.sh` (copied as-is from the status
+  line the author already used at `~/.claude/statusline.sh`).
+- It draws 3 lines: (1) directory + git, (2) horizon rule with a gradient,
+  (3) model + context bar + cost + tokens + clock.
+- It uses **24-bit truecolor** and **Nerd Font** glyphs (Cascadia Code NF).
+- Originally **everything was hardcoded**: palette, sections, widths, glyphs, format.
+- It reads the JSON Claude Code provides over stdin (model, cwd, context, cost).
+
+**The work is:** move those hardcoded values into a configuration file, and build the
+Node/TS wizard that generates and edits that configuration.
 
 ---
 
-## 4. Arquitectura
+## 3. Goal
 
-Decisión central: **el runtime sigue siendo bash; el wizard es Node/TS; el puente
-es un archivo JSON.**
+1. The status line reads its appearance from a **JSON config** at runtime.
+2. A **CLI wizard** (Node + TypeScript) that creates/edits that config interactively
+   and pleasantly.
+3. Automatic, reversible integration with Claude Code (`settings.json`).
+4. Publishable on **public GitHub** and distributable via `pnpm dlx` / global install.
+
+---
+
+## 4. Architecture
+
+Central decision: **the runtime stays bash; the wizard is Node/TS; the bridge is a
+JSON file.**
 
 ```
-┌─────────────────────┐     escribe      ┌──────────────────────────────┐
-│  Wizard CLI (Node)  │  ───────────────▶│  ~/.config/space-statusline/ │
+┌─────────────────────┐     writes       ┌──────────────────────────────┐
+│  CLI Wizard (Node)  │  ───────────────▶│  ~/.config/space-statusline/ │
 │  @clack/prompts     │                   │      config.json             │
 └─────────────────────┘                   └──────────────┬───────────────┘
-          │ install                                       │ lee (jq)
+          │ install                                       │ reads (jq)
           ▼                                                ▼
-┌─────────────────────┐    ejecuta en     ┌──────────────────────────────┐
-│ ~/.claude/          │   cada render     │  statusline.sh (bash + jq)    │
-│ settings.json       │  ───────────────▶ │  dibuja según config          │
+┌─────────────────────┐    runs on        ┌──────────────────────────────┐
+│ ~/.claude/          │   every render    │  statusline.sh (bash + jq)    │
+│ settings.json       │  ───────────────▶ │  draws according to config    │
 │ statusLine.command  │                   └──────────────────────────────┘
 └─────────────────────┘
 ```
 
-**Por qué bash en runtime y no Node:** Claude Code invoca el status line muy
-seguido. Arrancar Node en cada render añade ~50-150 ms de cold-start; bash + jq es
-casi instantáneo. La lógica de gradientes ya está resuelta en bash. Por eso el
-wizard NO reimplementa el render: solo edita el JSON que el bash consume.
+**Why bash at runtime and not Node:** Claude Code invokes the status line very often.
+Starting Node on every render adds ~50-150 ms of cold-start; bash + jq is nearly
+instant. The gradient logic is already solved in bash. That is why the wizard does NOT
+reimplement rendering: it only edits the JSON that bash consumes.
 
-> Alternativa descartada: generar un `statusline.sh` distinto desde un template en
-> cada cambio. Es más frágil (regenerar código) que leer config en runtime. Si el
-> agente encuentra una razón fuerte para reconsiderarlo, debe documentarla y
-> consultar antes de cambiar el enfoque.
+> Discarded alternative: generating a different `statusline.sh` from a template on
+> every change. That is more fragile (regenerating code) than reading config at
+> runtime. If the agent finds a strong reason to reconsider it, they should document it
+> and ask before changing the approach.
 
 ---
 
-## 5. Componentes
+## 5. Components
 
 ### 5.1 Runtime — `runtime/statusline.sh`
 
-Refactor del script actual para que:
+Refactor of the current script so that it:
 
-- Cargue `~/.config/space-statusline/config.json` (o `$SPACE_STATUSLINE_CONFIG`).
-- Si no hay config, use **defaults embebidos** (el tema Outrun actual) — nunca
-  debe romperse por falta de config.
-- Parametrice desde la config: gradiente y paleta, secciones habilitadas y su
-  orden, glifos, layout (1 línea vs multilínea, anchos, separador, formato de hora,
-  uppercase on/off) y los umbrales de color del contexto.
-- Mantenga los **fallbacks**: sin `jq` → línea mínima legible; sin Nerd Font →
-  modo unicode (según config); sin truecolor → degradado a 256 colores
-  (*nice-to-have*, no bloqueante).
+- Loads `~/.config/space-statusline/config.json` (or `$SPACE_STATUSLINE_CONFIG`).
+- If there is no config, uses **embedded defaults** (the current Outrun theme) — it
+  must never break for lack of config.
+- Parameterizes from the config: gradient and palette, enabled sections and their
+  order, glyphs, layout (1 line vs multi-line, widths, separator, time format,
+  uppercase on/off) and the context color thresholds.
+- Keeps the **fallbacks**: no `jq` → minimal readable line; no Nerd Font → unicode mode
+  (per config); no truecolor → degrade to 256 colors (*nice-to-have*, not blocking).
 
 ### 5.2 Config — `~/.config/space-statusline/config.json`
 
-Ruta XDG. Schema versionado (validar con **zod** en el lado Node). Borrador del
-schema (el agente puede refinar nombres, pero este es el contrato base):
+XDG path. Versioned schema (validated with **zod** on the Node side). Draft of the
+schema (the agent may refine names, but this is the base contract):
 
 ```jsonc
 {
   "version": 1,
   "theme": {
-    "preset": "outrun-horizon",            // nombre de preset o "custom"
+    "preset": "outrun-horizon",            // preset name or "custom"
     "gradient": { "start": "#7A3CFF", "end": "#FF6CF0" },
     "colors": {
       "accent":   "#A96BFF",
@@ -123,7 +121,7 @@ schema (el agente puede refinar nombres, pero este es el contrato base):
   },
   "glyphs": {
     "mode": "nerdfont",                      // "nerdfont" | "unicode"
-    "repo": "", "branch": "", "clock": "", "model": "✦",
+    "repo": "", "branch": "", "clock": "", "model": "✦",
     "added": "✚", "modified": "±", "ahead": "⇡", "behind": "⇣"
   },
   "layout": {
@@ -138,72 +136,71 @@ schema (el agente puede refinar nombres, pero este es el contrato base):
 }
 ```
 
-### 5.3 Wizard CLI
+### 5.3 CLI wizard
 
-Binario `space-statusline`. Comandos:
+Binary `space-statusline`. Commands:
 
-| Comando | Qué hace |
+| Command | What it does |
 |---|---|
-| `init` | Wizard completo (primera vez) + opción de instalar en Claude Code. |
-| `config` | Re-ejecuta el wizard para editar la config existente. |
-| `theme [name]` | Cambio rápido de preset sin pasar por todo el wizard. |
-| `install` | Conecta el status line a Claude Code (escribe `settings.json`). |
-| `uninstall` | Quita la entrada `statusLine` y restaura backup. |
-| `preview` | Renderiza con un input JSON mock para ver el resultado. |
-| `doctor` | Verifica `jq`, `git`, soporte truecolor y Nerd Font. |
+| `init` | Full wizard (first time) + option to install into Claude Code. |
+| `config` | Re-runs the wizard to edit the existing config. |
+| `theme [name]` | Quick preset switch without going through the whole wizard. |
+| `install` | Connects the status line to Claude Code (writes `settings.json`). |
+| `uninstall` | Removes the `statusLine` entry and restores a backup. |
+| `preview` | Renders with a mock JSON input to see the result. |
+| `doctor` | Checks `jq`, `git`, truecolor support, and Nerd Font. |
 
-**Flujo del wizard (`@clack/prompts`):**
+**Wizard flow (`@clack/prompts`):**
 
-1. `intro()` con branding.
-2. **Tema:** `select` de presets + opción "custom" → si custom, pedir color
-   inicio/fin (hex, validados) y derivar la paleta.
-3. **Secciones:** `multiselect` de habilitadas → luego definir el **orden** (un
-   prompt de orden; clack no tiene drag, resolver con selección iterativa o un
-   `text` ordenado validado).
-4. **Glifos:** `select` `nerdfont | unicode`; modo avanzado opcional para
-   personalizar glifos individuales.
-5. **Layout:** multilínea vs 1 línea, anchos (horizonte, barra ctx), separador,
-   formato de hora, uppercase on/off.
-6. **Preview en vivo:** invocar `runtime/statusline.sh` con la config tentativa y
-   un input mock, y mostrar el resultado real antes de confirmar.
-7. `outro()` → escribir `config.json` → ofrecer `install`.
+1. `intro()` with branding.
+2. **Theme:** `select` of presets + "custom" option → if custom, ask for start/end
+   color (hex, validated) and derive the palette.
+3. **Sections:** `multiselect` of enabled ones → then define the **order** (one order
+   prompt; clack has no drag — solve with iterative selection or a validated ordered
+   `text`).
+4. **Glyphs:** `select` `nerdfont | unicode`; optional advanced mode to customize
+   individual glyphs.
+5. **Layout:** multi-line vs 1 line, widths (horizon, ctx bar), separator, time format,
+   uppercase on/off.
+6. **Live preview:** invoke `runtime/statusline.sh` with the tentative config and a mock
+   input, and show the real result before confirming.
+7. `outro()` → write `config.json` → offer to `install`.
 
-### 5.4 Temas / paletas (`src/themes.ts`)
+### 5.4 Themes / palettes (`src/themes.ts`)
 
-Set de presets como objetos de paleta. Incluir al menos:
-`outrun-horizon` (default actual), un `mono`/minimal, y 1-2 alternativos. Cada
-preset define gradiente + colores. "custom" se deriva del gradiente que elija el
-usuario.
+A set of presets as palette objects. Include at least:
+`outrun-horizon` (current default), a `mono`/minimal, and 1-2 alternatives. Each preset
+defines a gradient + colors. "custom" is derived from the gradient the user chooses.
 
-### 5.5 Integración con Claude Code (`src/claude.ts`)
+### 5.5 Claude Code integration (`src/claude.ts`)
 
-- Localizar `~/.claude/settings.json`.
-- **Backup** antes de tocar (`settings.json.bak` con timestamp).
-- **Merge seguro:** parsear el JSON, setear solo `statusLine` y reescribir
-  preservando TODAS las demás claves. NUNCA sobrescribir el archivo entero.
-- **PROHIBIDO** tocar claves de permisos (`permissions`, `defaultMode`,
-  `skipAutoPermissionPrompt`, etc.). El instalador solo gestiona `statusLine`.
-- Copiar `runtime/statusline.sh` a una ruta estable
-  (`~/.config/space-statusline/statusline.sh`) y apuntar `settings.json` ahí, para
-  que la ruta no dependa de dónde quedó instalado el paquete npm.
-- `uninstall` quita `statusLine` y, si hay backup, lo ofrece.
+- Locate `~/.claude/settings.json`.
+- **Backup** before touching it (`settings.json.bak` with timestamp).
+- **Safe merge:** parse the JSON, set only `statusLine` and rewrite preserving ALL
+  other keys. NEVER overwrite the whole file.
+- It is **FORBIDDEN** to touch permission keys (`permissions`, `defaultMode`,
+  `skipAutoPermissionPrompt`, etc.). The installer only manages `statusLine`.
+- Copy `runtime/statusline.sh` to a stable path
+  (`~/.config/space-statusline/statusline.sh`) and point `settings.json` there, so the
+  path does not depend on where the npm package landed.
+- `uninstall` removes `statusLine` and, if there is a backup, offers it.
 
 ---
 
-## 6. Stack y dependencias
+## 6. Stack and dependencies
 
-- **Runtime:** bash 4+, `jq`, `git` (ya presentes en el entorno del autor).
-- **Wizard:** Node 24 + TypeScript, gestor **pnpm** (obligatorio — ver CLAUDE.md).
-- Librerías sugeridas (verificar API vigente al instalar):
-  - `@clack/prompts` — prompts interactivos.
-  - `zod` — validación del schema de config.
-  - `picocolors` — color en mensajes de la CLI.
-- `package.json`: `type: module`, `bin` apuntando al entry compilado, scripts de
+- **Runtime:** bash 4+, `jq`, `git` (already present in the author's environment).
+- **Wizard:** Node 24 + TypeScript, package manager **pnpm** (mandatory — see CLAUDE.md).
+- Suggested libraries (verify the current API on install):
+  - `@clack/prompts` — interactive prompts.
+  - `zod` — config schema validation.
+  - `picocolors` — color in CLI messages.
+- `package.json`: `type: module`, `bin` pointing to the compiled entry, scripts for
   `build`/`dev`/`lint`/`typecheck`.
 
 ---
 
-## 7. Estructura propuesta del repo
+## 7. Proposed repo structure
 
 ```
 space-statusline/
@@ -215,96 +212,100 @@ space-statusline/
 ├── SPEC.md
 ├── .gitignore
 ├── src/
-│   ├── cli.ts          # entry: parseo de comandos
-│   ├── wizard.ts       # flujo @clack/prompts
-│   ├── config.ts       # schema zod, load/save, defaults, ruta XDG
-│   ├── themes.ts       # presets de paletas
-│   ├── claude.ts       # integración settings.json (merge seguro)
-│   └── preview.ts      # invoca el bash con input mock
+│   ├── cli.ts          # entry: command parsing
+│   ├── wizard.ts       # @clack/prompts flow
+│   ├── config.ts       # zod schema, load/save, defaults, XDG path
+│   ├── themes.ts       # palette presets
+│   ├── claude.ts       # settings.json integration (safe merge)
+│   └── preview.ts      # invokes the bash with mock input
 └── runtime/
-    └── statusline.sh   # status line bash (lee config.json)
+    └── statusline.sh   # bash status line (reads config.json)
 ```
 
 ---
 
-## 8. Requisitos funcionales
+## 8. Functional requirements
 
-- **RF1** — El status line lee su apariencia desde `config.json`; sin config usa defaults.
-- **RF2** — El wizard permite elegir tema (preset o gradiente custom).
-- **RF3** — El wizard permite activar/desactivar y **reordenar** secciones.
-- **RF4** — El wizard permite elegir modo de glifos (Nerd Font / Unicode) y
-  personalizarlos.
-- **RF5** — El wizard permite ajustar layout (líneas, anchos, separador, hora, uppercase).
-- **RF6** — Preview en vivo del resultado real antes de guardar.
-- **RF7** — `install`/`uninstall` conectan/desconectan de Claude Code de forma
-  reversible y sin tocar permisos.
-- **RF8** — `doctor` diagnostica el entorno (jq, git, truecolor, Nerd Font).
+- **FR1** — The status line reads its appearance from `config.json`; without config it
+  uses defaults.
+- **FR2** — The wizard lets you choose a theme (preset or custom gradient).
+- **FR3** — The wizard lets you enable/disable and **reorder** sections.
+- **FR4** — The wizard lets you choose the glyph mode (Nerd Font / Unicode) and
+  customize them.
+- **FR5** — The wizard lets you adjust layout (lines, widths, separator, time,
+  uppercase).
+- **FR6** — Live preview of the real result before saving.
+- **FR7** — `install`/`uninstall` connect/disconnect from Claude Code reversibly and
+  without touching permissions.
+- **FR8** — `doctor` diagnoses the environment (jq, git, truecolor, Nerd Font).
 
-## 9. Requisitos no funcionales
+## 9. Non-functional requirements
 
-- **RNF1 (performance)** — El render del status line NO debe arrancar Node. Target
-  < 50 ms. Por eso el runtime es bash + jq.
-- **RNF2 (robustez)** — Nunca romper la terminal: degradar con fallbacks ante
-  ausencia de jq / Nerd Font / truecolor.
-- **RNF3 (seguridad)** — El instalador solo gestiona `statusLine` en settings.json,
-  con backup; jamás toca permisos ni otras claves.
-- **RNF4 (legibilidad)** — Código TS legible, nombres en inglés, comentarios en
-  inglés, type hints completos (ver CLAUDE.md).
-- **RNF5 (portabilidad)** — Pensado para WSL2 / Linux / macOS con bash 4+.
+- **NFR1 (performance)** — The status line render must NOT start Node. Target < 50 ms.
+  That is why the runtime is bash + jq.
+- **NFR2 (robustness)** — Never break the terminal: degrade with fallbacks when jq /
+  Nerd Font / truecolor are missing.
+- **NFR3 (security)** — The installer only manages `statusLine` in settings.json, with a
+  backup; it never touches permissions or other keys.
+- **NFR4 (readability)** — Readable TS code, names in English, comments in English,
+  complete type hints (see CLAUDE.md).
+- **NFR5 (portability)** — Designed for WSL2 / Linux / macOS with bash 4+.
 
-## 10. Distribución / publicación
+## 10. Distribution / publishing
 
-- Repo **GitHub público**.
-- `gh` **no** está instalado en el entorno → la publicación se hace instalando
-  `gh` o creando el repo desde la web + `git remote add`.
-- Paquete npm: verificar disponibilidad del nombre `space-statusline` (o usar scope).
-  Uso esperado: `pnpm dlx space-statusline init` o `pnpm add -g space-statusline`.
-- LICENSE: por defecto MIT (confirmar con el autor).
-- **La publicación es el paso final y manual; requiere confirmación explícita del
-  autor (no commitear ni publicar sin autorización — ver CLAUDE.md).**
+- **Public GitHub** repo.
+- `gh` is **not** installed in the environment → publishing is done by installing `gh`
+  or creating the repo from the web + `git remote add`.
+- npm package: check availability of the name `space-statusline` (or use a scope).
+  Expected usage: `pnpm dlx space-statusline init` or `pnpm add -g space-statusline`.
+- LICENSE: MIT by default (confirm with the author).
+- **Publishing is the final, manual step; it requires the author's explicit
+  authorization (do not commit or publish without authorization — see CLAUDE.md).**
 
-## 11. Roadmap de implementación (por fases)
+## 11. Implementation roadmap (by phases)
 
-> El agente debe presentar un PLAN y obtener aprobación antes de codificar
-> (regla del autor). Sugerencia de fases:
+> The agent must present a PLAN and get approval before coding (author's rule).
+> Suggested phases:
 
-- **Fase 0 — Scaffold:** `pnpm init`, tsconfig, estructura `src/`, deps base.
-- **Fase 1 — Config:** schema zod, defaults, load/save, ruta XDG.
-- **Fase 2 — Runtime:** refactor de `statusline.sh` para leer config.json.
-- **Fase 3 — Wizard:** `init`/`config` con tema, secciones+orden, glifos, layout, preview.
-- **Fase 4 — Claude Code:** `install`/`uninstall` con merge seguro de settings.json.
-- **Fase 5 — Aux:** `doctor`, `preview`, `theme`.
-- **Fase 6 — Empaquetado:** README real, LICENSE, package.json publish-ready.
-- **Fase 7 — Publicación (manual):** repo GitHub público + push + npm. Requiere OK.
+- **Phase 0 — Scaffold:** `pnpm init`, tsconfig, `src/` structure, base deps.
+- **Phase 1 — Config:** zod schema, defaults, load/save, XDG path.
+- **Phase 2 — Runtime:** refactor `statusline.sh` to read config.json.
+- **Phase 3 — Wizard:** `init`/`config` with theme, sections+order, glyphs, layout,
+  preview.
+- **Phase 4 — Claude Code:** `install`/`uninstall` with a safe merge of settings.json.
+- **Phase 5 — Aux:** `doctor`, `preview`, `theme`.
+- **Phase 6 — Packaging:** real README, LICENSE, publish-ready package.json.
+- **Phase 7 — Publishing (manual):** public GitHub repo + push + npm. Requires OK.
 
 ## 12. Definition of Done
 
-- [ ] `pnpm install && pnpm build` sin errores; `lint` y `typecheck` limpios.
-- [ ] `space-statusline init` configura desde cero y deja el status line funcionando.
-- [ ] `space-statusline config` edita una config existente.
-- [ ] Cambiar tema/secciones/glifos/layout se refleja en el render real.
-- [ ] `install`/`uninstall` son reversibles y respetan el resto de settings.json.
-- [ ] Fallbacks verificados (sin jq, sin Nerd Font).
-- [ ] README con instalación y uso reales.
+- [ ] `pnpm install && pnpm build` with no errors; `lint` and `typecheck` clean.
+- [ ] `space-statusline init` configures from scratch and leaves the status line working.
+- [ ] `space-statusline config` edits an existing config.
+- [ ] Changing theme/sections/glyphs/layout is reflected in the real render.
+- [ ] `install`/`uninstall` are reversible and respect the rest of settings.json.
+- [ ] Fallbacks verified (no jq, no Nerd Font).
+- [ ] README with real installation and usage.
 
-## 13. Decisiones tomadas / abiertas
+## 13. Decisions made / open
 
-**Tomadas (confirmadas con el autor):**
-- Stack del wizard: **Node.js + TypeScript (pnpm)**.
-- Alcance de personalización: **completo** (temas, secciones+orden, glifos, layout).
-- Destino: **GitHub público**.
-- Runtime: **bash** leyendo **config JSON** (XDG).
+**Made (confirmed with the author):**
+- Wizard stack: **Node.js + TypeScript (pnpm)**.
+- Customization scope: **complete** (themes, sections+order, glyphs, layout).
+- Target: **public GitHub**.
+- Runtime: **bash** reading a **JSON config** (XDG).
 
-**A confirmar durante la implementación:**
-- Nombre exacto del paquete npm (libre vs scoped) y si se publica a npm o solo GitHub.
-- Licencia (default MIT).
-- Presets de tema adicionales más allá de `outrun-horizon`.
+**To confirm during implementation:**
+- Exact npm package name (unscoped vs scoped) and whether it publishes to npm or only
+  GitHub.
+- License (default MIT).
+- Additional theme presets beyond `outrun-horizon`.
 
-## 14. Cómo arrancar (para el agente de la sesión nueva)
+## 14. How to start (for the fresh-session agent)
 
-1. Abrí Claude Code en `~/personal/space-statusline`.
-2. Leé `CLAUDE.md` y este `SPEC.md`.
-3. Inspeccioná `runtime/statusline.sh` para entender el render actual.
-4. Proponé un PLAN por fases (sección 11) y esperá aprobación del autor.
-5. Implementá fase por fase, corriendo `lint`/`typecheck` tras cada cambio mayor.
-6. No commitear ni publicar sin autorización explícita.
+1. Open Claude Code in `~/personal/space-statusline`.
+2. Read `CLAUDE.md` and this `SPEC.md`.
+3. Inspect `runtime/statusline.sh` to understand the current render.
+4. Propose a PLAN by phases (section 11) and wait for the author's approval.
+5. Implement phase by phase, running `lint`/`typecheck` after each major change.
+6. Do not commit or publish without explicit authorization.
