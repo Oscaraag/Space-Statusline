@@ -1,90 +1,91 @@
 # space-statusline
 
-Un status line **space-synthwave** ("Outrun Horizon") para
-[Claude Code](https://claude.com/claude-code), **configurable mediante un wizard CLI**.
+A **space-synthwave** ("Outrun Horizon") status line for
+[Claude Code](https://claude.com/claude-code), **configured through a CLI wizard**.
 
-El render corre en **bash** (rápido, sin cold-start) · la configuración se hace en
-**Node + TypeScript** · **truecolor 24-bit** · glifos **Nerd Font** con fallback Unicode.
+Rendering runs in **bash** (fast, no cold-start) · configuration is done in
+**Node + TypeScript** · **24-bit truecolor** · **Nerd Font** glyphs with a Unicode
+fallback.
 
-## Cómo se ve
+## What it looks like
 
-Tres líneas (en modo `multi`, el default):
+Three lines (in `multi` mode, the default):
 
-1. Directorio + estado de git (rama, archivos nuevos/modificados, ahead/behind).
-2. Regla-horizonte con gradiente synthwave.
-3. Modelo · barra de contexto · costo · tokens · hora.
+1. Directory + git status (branch, new/modified files, ahead/behind).
+2. A horizon rule with a synthwave gradient.
+3. Model · context bar · cost · tokens · clock.
 
-También hay un modo de **una sola línea** (`single`).
+There is also a **single-line** mode (`single`).
 
-## Requisitos
+## Requirements
 
 - [Claude Code](https://claude.com/claude-code).
-- `bash` 4+, `jq` y `git` para el render (el wizard necesita Node ≥ 20).
-- Una **Nerd Font** (p. ej. Cascadia Code NF) y una terminal con **truecolor** para la
-  estética completa. Hay fallbacks: sin `jq` cae a una línea mínima; con glifos
-  Unicode no hace falta Nerd Font; sin truecolor degrada a 256 colores.
+- `bash` 4+, `jq`, and `git` for rendering (the wizard needs Node ≥ 20).
+- A **Nerd Font** (e.g. Cascadia Code NF) and a **truecolor** terminal for the full
+  look. Fallbacks exist: without `jq` it drops to a minimal line; with Unicode glyphs
+  no Nerd Font is needed; without truecolor it degrades to 256 colors.
 
-## Instalación
+## Installation
 
-Una vez publicado en npm:
+From npm:
 
 ```bash
-pnpm dlx space-statusline init      # wizard + opción de instalar en Claude Code
-# o instalación global:
+pnpm dlx space-statusline init      # wizard + option to install into Claude Code
+# or install globally:
 pnpm add -g space-statusline && space-statusline init
 ```
 
-Desde el código (mientras tanto):
+From source:
 
 ```bash
-git clone <repo> && cd space-statusline
+git clone https://github.com/Oscaraag/Space-Statusline.git && cd Space-Statusline
 pnpm install && pnpm build
 node dist/cli.js init
 ```
 
-El wizard escribe la config y ofrece **instalarse en Claude Code** (gestiona solo la
-clave `statusLine` de `~/.claude/settings.json`, con backup; nunca toca permisos).
+The wizard writes the config and offers to **install itself into Claude Code** (it only
+manages the `statusLine` key of `~/.claude/settings.json`, with a backup; it never
+touches permission keys).
 
-## Uso
+## Usage
 
-| Comando | Qué hace |
+| Command | What it does |
 |---|---|
-| `init` | Wizard completo (tema, secciones, glifos, layout, preview) + opción de instalar. |
-| `config` | Re-ejecuta el wizard para editar la config existente. |
-| `theme <name>` | Cambio rápido de preset: `outrun-horizon`, `sunset`, `vaporwave`, `mono`. |
-| `install` | Conecta el status line a Claude Code (merge seguro de `settings.json`). |
-| `uninstall` | Quita la entrada `statusLine` (deja un backup). |
-| `preview` | Renderiza con un input de ejemplo para ver el resultado. |
-| `doctor` | Verifica `jq`, `git`, soporte truecolor y Nerd Font. |
+| `init` | Full wizard (theme, sections, glyphs, layout, preview) + option to install. |
+| `config` | Re-runs the wizard to edit the existing config. |
+| `theme <name>` | Quick preset switch: `outrun-horizon`, `sunset`, `vaporwave`, `mono`. |
+| `install` | Connects the status line to Claude Code (safe merge of `settings.json`). |
+| `uninstall` | Removes the `statusLine` entry (leaves a backup). |
+| `preview` | Renders with sample input so you can see the result. |
+| `doctor` | Checks `jq`, `git`, truecolor support, and Nerd Font. |
 
-## Configuración
+## Configuration
 
-La config vive en `~/.config/space-statusline/config.json` (ruta XDG; se puede
-sobrescribir con `$SPACE_STATUSLINE_CONFIG`). El schema se valida con `zod` y permite
-ajustar:
+The config lives at `~/.config/space-statusline/config.json` (XDG path; overridable with
+`$SPACE_STATUSLINE_CONFIG`). The schema is validated with `zod` and lets you tune:
 
-- **Tema** — preset o gradiente custom (start/end en hex) + paleta de colores.
-- **Secciones** — cuáles mostrar (`dir`, `git`, `model`, `context`, `cost`, `tokens`,
-  `clock`) y en qué orden.
-- **Glifos** — `nerdfont` o `unicode`, personalizables.
-- **Layout** — `multi`/`single`, separador, ancho del horizonte y de la barra de
-  contexto, uppercase, formato de hora (strftime).
-- **Umbrales** — porcentajes de contexto para los colores de aviso/peligro.
+- **Theme** — a preset or a custom gradient (start/end hex) plus the color palette.
+- **Sections** — which to show (`dir`, `git`, `model`, `context`, `cost`, `tokens`,
+  `clock`) and in what order.
+- **Glyphs** — `nerdfont` or `unicode`, customizable.
+- **Layout** — `multi`/`single`, separator, horizon and context-bar widths, uppercase,
+  clock format (strftime).
+- **Thresholds** — context percentages for the warn/danger colors.
 
-El bash lee ese JSON en cada render; si falta o es inválido, usa defaults embebidos.
+The bash runtime reads that JSON on every render; if it is missing or invalid, it falls
+back to embedded defaults.
 
-## Temas
+## Themes
 
-`outrun-horizon` (default, violeta→magenta) · `sunset` (cálido, naranja→rosa) ·
-`vaporwave` (frío, cian→violeta) · `mono` (minimal, grises). Más `custom` desde el
-wizard.
+`outrun-horizon` (default, violet→magenta) · `sunset` (warm, orange→pink) ·
+`vaporwave` (cool, cyan→violet) · `mono` (minimal, greys). Plus `custom` from the wizard.
 
-## Terminal recomendada (Windows Terminal)
+## Recommended terminal (Windows Terminal)
 
-Para que el gradiente y los glifos se vean como en la captura, usá
-**CaskaydiaCove Nerd Font** y el esquema de color **Outrun Horizon**.
+To get the gradient and glyphs looking their best, use **CaskaydiaCove Nerd Font** and
+the **Outrun Horizon** color scheme.
 
-1. Agregá este esquema en `settings.json` de Windows Terminal, dentro de `"schemes"`:
+1. Add this scheme to Windows Terminal's `settings.json`, inside `"schemes"`:
 
 ```json
 {
@@ -112,7 +113,7 @@ Para que el gradiente y los glifos se vean como en la captura, usá
 }
 ```
 
-2. Aplicalo en `"defaults"` (afecta a todos los perfiles) o en un perfil puntual:
+2. Apply it in `"defaults"` (affects every profile) or in a single profile:
 
 ```json
 "defaults": {
@@ -123,14 +124,14 @@ Para que el gradiente y los glifos se vean como en la captura, usá
 }
 ```
 
-## Cómo funciona
+## How it works
 
-El render se mantiene en **bash + jq** porque Claude Code lo invoca muy seguido y
-arrancar Node en cada render añadiría cold-start. El wizard (Node/TS) **no
-reimplementa el render**: solo edita la config JSON que el bash consume. El puente
-entre ambos es ese archivo. El render apunta a < 50 ms.
+Rendering stays in **bash + jq** because Claude Code invokes it very often and starting
+Node on every render would add cold-start latency. The wizard (Node/TS) **does not
+reimplement rendering**: it only edits the JSON config that bash consumes. That file is
+the bridge between the two. The render targets < 50 ms.
 
-## Desarrollo
+## Development
 
 ```bash
 pnpm install
@@ -139,12 +140,12 @@ pnpm typecheck   # tsc --noEmit
 pnpm lint        # eslint
 ```
 
-Probar el runtime directamente:
+Run the runtime directly:
 
 ```bash
 echo '{"model":{"display_name":"Opus 4.1"},"workspace":{"current_dir":"'"$PWD"'"},"context_window":{"used_percentage":58},"cost":{"total_cost_usd":1.24}}' | bash runtime/statusline.sh
 ```
 
-## Licencia
+## License
 
-MIT — ver [`LICENSE`](./LICENSE).
+MIT — see [`LICENSE`](./LICENSE).
