@@ -1,6 +1,6 @@
 {
   "name": "space-statusline",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Configurable space-synthwave (Outrun Horizon) status line for Claude Code, set up via an interactive CLI wizard.",
   "type": "module",
   "bin": {
