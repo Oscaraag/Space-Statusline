@@ -1,0 +1,66 @@
+{
+  "name": "space-statusline",
+  "version": "0.1.0",
+  "description": "Configurable space-synthwave (Outrun Horizon) status line for Claude Code, set up via an interactive CLI wizard.",
+  "type": "module",
+  "bin": {
+    "space-statusline": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "runtime",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "prepublishOnly": "pnpm run build"
+  },
+  "keywords": [
+    "claude-code",
+    "statusline",
+    "cli",
+    "synthwave",
+    "outrun",
+    "terminal",
+    "wizard"
+  ],
+  "author": "Oscar Angel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Oscaraag/Space-Statusline.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Oscaraag/Space-Statusline/issues"
+  },
+  "homepage": "https://github.com/Oscaraag/Space-Statusline#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.1.1",
+      "onFail": "download"
+    }
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.5.1",
+    "picocolors": "^1.1.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.9.3",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.0"
+  }
+}
