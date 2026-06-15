@@ -44,6 +44,30 @@ export async function runWizard(existing: Config | null): Promise<Config | null>
 
   p.intro(pc.magenta(pc.bold('space-statusline')) + pc.dim('  ·  synthwave status line'));
 
+  // ── 0. Quick path: accept everything at once and skip the per-field prompts ──
+  // For a from-scratch run this means the Outrun defaults; when editing it keeps
+  // the current config untouched. Selected by default → a single Enter finishes.
+  const setupMode = requireValue(
+    await p.select<'quick' | 'custom'>({
+      message: 'Setup',
+      initialValue: 'quick',
+      options: [
+        {
+          value: 'quick',
+          label: existing ? 'Keep current settings' : 'Use defaults (all)',
+          hint: existing
+            ? 'no changes — straight to preview'
+            : 'Outrun Horizon · all sections · Nerd Font · multi-line',
+        },
+        { value: 'custom', label: 'Customize…', hint: 'theme, sections, glyphs, layout' },
+      ],
+    }),
+  );
+  if (setupMode === 'quick') {
+    p.note(renderPreview(base), 'Preview');
+    return base;
+  }
+
   // ── 1. Theme ───────────────────────────────────────────────────────────────
   const presetChoice = requireValue(
     await p.select<PresetName | 'custom'>({
