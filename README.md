@@ -20,7 +20,8 @@ There is also a **single-line** mode (`single`).
 ## Requirements
 
 - [Claude Code](https://claude.com/claude-code).
-- `bash` 4+, `jq`, and `git` for rendering (the wizard needs Node ≥ 20).
+- `bash` 3.2+ (macOS's stock `/bin/bash` works), `jq`, and `git` for rendering (the
+  wizard needs Node ≥ 20).
 - A **Nerd Font** (e.g. Cascadia Code NF) and a **truecolor** terminal for the full
   look. Fallbacks exist: without `jq` it drops to a minimal line; with Unicode glyphs
   no Nerd Font is needed; without truecolor it degrades to 256 colors.

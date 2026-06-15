@@ -2,7 +2,8 @@
 # ════════════════════════════════════════════════════════════════
 #  OUTRUN HORIZON · status line para Claude Code
 #  Estilo space-synthwave · truecolor 24-bit · Nerd Font (Cascadia Code NF)
-#  Requiere: bash 4+, jq, git   ·   Pensado para WSL2 / Linux / macOS
+#  Requiere: jq, git y bash 3.2+ (compatible con el bash 3.2 de macOS y bash 4+)
+#  Pensado para WSL2 / Linux / macOS
 #
 #  Config-driven: lee su apariencia desde
 #    $SPACE_STATUSLINE_CONFIG  o  ${XDG_CONFIG_HOME:-~/.config}/space-statusline/config.json
@@ -94,7 +95,9 @@ read_all(){
 cfg=$(read_all "$usercfg")
 [[ -z "$cfg" ]] && cfg=$(read_all '{}')
 
-mapfile -t CFG_LINES <<<"$cfg"
+# Split into lines without `mapfile` (a bash 4 builtin; macOS ships bash 3.2).
+CFG_LINES=()
+while IFS= read -r _line; do CFG_LINES+=("$_line"); done <<<"$cfg"
 IFS="$US" read -r \
   GS GE C_ACCENT C_MAG C_CYAN C_GREEN C_AMBER C_DIM C_CTXW C_CTXD \
   T_WARN T_DANGER HORIZON_W CTXBAR_W SEPARATOR TIME_FMT UPPER LINES_MODE \
@@ -189,8 +192,22 @@ ctxbar(){
 }
 
 fmtk(){ local n=$1; (( n>=1000 )) && printf '%d.%dk' $(( n/1000 )) $(( (n%1000)/100 )) || printf '%d' "$n"; }
-# Uppercase a variable in place when layout.uppercase is on (bash builtin, no fork).
-upcase(){ local v=${!1}; [[ $UPPER == true ]] && v=${v^^}; printf -v "$1" '%s' "$v"; }
+
+# ── Capability shims: fast path on bash 4+, fallbacks on bash 3.2 (macOS) ─
+# Uppercase a variable in place when layout.uppercase is on. The `${v^^}`
+# operator is bash 4+, so older bash falls back to tr (a fork, but macOS-only).
+if (( BASH_VERSINFO[0] >= 4 )); then
+  upcase(){ [[ $UPPER == true ]] || return 0; local v=${!1}; printf -v "$1" '%s' "${v^^}"; }
+else
+  upcase(){ [[ $UPPER == true ]] || return 0; local v; v=$(printf '%s' "${!1}" | tr '[:lower:]' '[:upper:]'); printf -v "$1" '%s' "$v"; }
+fi
+# Current time formatted with TIME_FMT. printf's `%()T` is bash 4.2+, so older
+# bash falls back to date(1).
+if (( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 2) )); then
+  now(){ printf "%(${TIME_FMT})T" -1; }
+else
+  now(){ local t; t=$(date +"$TIME_FMT"); printf '%s' "$t"; }
+fi
 
 # ── Paleta (desde la config) ─────────────────────────────────────
 hex2rgb "$C_ACCENT" 169 107 255; mkfg PUR  "$R" "$G" "$B"
@@ -248,7 +265,7 @@ sec_model(){   printf '%s%s %s%s' "${PUR}${BOLD}" "$G_MDL" "$MODEL" "$RESET"; }
 sec_context(){ printf '%sCTX%s ' "$DIM" "$RESET"; ctxbar "$PCT" "$CTXBAR_W"; printf ' %s%s%%%s' "$PC" "$PCT" "$RESET"; }
 sec_cost(){    printf '%s$%.2f%s' "$GRN" "$COST" "$RESET"; }
 sec_tokens(){  printf '%s' "$DIM"; fmtk "$TOK"; printf '%s' "$RESET"; }
-sec_clock(){   printf '%s%s ' "$CYAN" "$G_CLK"; printf "%(${TIME_FMT})T" -1; printf '%s' "$RESET"; }
+sec_clock(){   printf '%s%s ' "$CYAN" "$G_CLK"; now; printf '%s' "$RESET"; }
 
 render_section(){
   case "$1" in
@@ -274,13 +291,14 @@ print_group(){
 }
 
 # ── Ensamblado según order/enabled + layout ──────────────────────
-declare -A IS_EN; for s in "${ENABLED[@]}"; do IS_EN[$s]=1; done
+# Membership set as a delimited string (bash 3.2 has no associative arrays).
+EN_SET="|"; for s in "${ENABLED[@]}"; do EN_SET+="$s|"; done
 
 # Sections to render, in order; git collapses to nothing when not a repo.
 # loc = location group (line 1), met = metrics group (line 3) for multiline.
 visible=(); loc=(); met=()
 for s in "${ORDER[@]}"; do
-  [[ ${IS_EN[$s]:-} ]] || continue
+  [[ $EN_SET == *"|$s|"* ]] || continue
   [[ $s == git && $GIT -eq 0 ]] && continue
   visible+=("$s")
   case "$s" in
